@@ -1,0 +1,254 @@
+const JOBS = [
+  { id:'JOB-0041', brand:'Samsung', model:'Galaxy S24', tech:'Amara', fault:'Screen unresponsive, cracked glass diagonally.', status:'progress' },
+  { id:'JOB-0040', brand:'Apple', model:'iPhone 15 Pro', tech:'Jomo', fault:'Battery draining significantly faster than normal.', status:'new' },
+  { id:'JOB-0039', brand:'Xiaomi', model:'Redmi Note 13', tech:'Fatima', fault:'Charging port loose, intermittent charging.', status:'new' },
+  { id:'JOB-0038', brand:'Tecno', model:'Camon 20', tech:'Kofi', fault:'Rear camera lens cracked, photos blurry.', status:'done' },
+  { id:'JOB-0037', brand:'Infinix', model:'Hot 40i', tech:'Nia', fault:'Speaker crackling at high volume.', status:'done' },
+];
+
+let activeIdx = 0;
+// No API key required; use local mock response when runDiagnosis is invoked without a configured proxy.
+let lastDiagnosis = null; // stores the last generated diagnosis for download
+
+function renderJobs(filter='') {
+  const list = document.getElementById('jobList');
+  const filtered = JOBS.filter(j =>
+    j.brand.toLowerCase().includes(filter.toLowerCase()) ||
+    j.model.toLowerCase().includes(filter.toLowerCase()) ||
+    j.id.toLowerCase().includes(filter.toLowerCase())
+  );
+  list.innerHTML = filtered.map((j, i) => {
+    const orig = JOBS.indexOf(j);
+    return `<div class="job-item ${orig===activeIdx?'active':''}" onclick="selectJob(${orig})">
+      <div class="job-item-top">
+        <span class="job-id">${j.id}</span>
+        <span class="job-badge b-${j.status}">${j.status==='progress'?'in progress':j.status}</span>
+      </div>
+      <div class="job-name">${j.brand} ${j.model}</div>
+      <div class="job-fault">${j.fault}</div>
+    </div>`;
+  }).join('');
+}
+
+function filterJobs(val) { renderJobs(val); }
+
+function selectJob(i) {
+  activeIdx = i;
+  const j = JOBS[i];
+  document.getElementById('brand').value = j.brand;
+  document.getElementById('model').value = j.model;
+  document.getElementById('tech').value = j.tech;
+  document.getElementById('faultDesc').value = j.fault;
+  document.getElementById('topbarTitle').textContent = `${j.brand} ${j.model} — ${j.id}`;
+  document.getElementById('chipTech').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> Tech: ${j.tech}`;
+  resetAI();
+  renderJobs();
+}
+
+function newJob() {
+  const id = 'JOB-' + String(Math.floor(Math.random()*9000)+1000);
+  JOBS.unshift({ id, brand:'Samsung', model:'', tech:'Amara', fault:'', status:'new' });
+  selectJob(0);
+}
+
+function updateTopbar() {
+  const b = document.getElementById('brand').value;
+  const m = document.getElementById('model').value;
+  const t = document.getElementById('tech').value;
+  const j = JOBS[activeIdx];
+  j.brand = b; j.model = m; j.tech = t;
+  document.getElementById('topbarTitle').textContent = `${b} ${m} — ${j.id}`;
+  document.getElementById('chipTech').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> Tech: ${t}`;
+  renderJobs();
+}
+
+function triggerUpload() {}
+
+function handlePhotos(input) {
+  const thumbs = document.getElementById('thumbs');
+  Array.from(input.files).forEach(f => {
+    const url = URL.createObjectURL(f);
+    const d = document.createElement('div');
+    d.className = 'thumb';
+    d.innerHTML = `<img src="${url}" alt="damage photo">`;
+    thumbs.appendChild(d);
+  });
+}
+
+function resetAI() {
+  document.getElementById('aiBody').innerHTML = `<div class="ai-empty"><div class="ai-empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></svg></div><p>Enter device details and describe the fault, then run a diagnosis to get AI-guided repair steps.</p></div>`;
+  document.getElementById('pulseDot').classList.remove('active');
+  document.getElementById('aiTag').textContent = 'idle';
+}
+
+// Local mock generator used when no external API is available.
+function generateMockResponse(brand, model, fault, tech) {
+  const f = fault.toLowerCase();
+  const diagnoses = [];
+  const steps = [];
+  const parts = [];
+  let history_note = `${brand} ${model} — common issues vary by region.`;
+
+  if (f.includes('screen') || f.includes('touch') || f.includes('unresponsive')) {
+    diagnoses.push({ cause: 'digitizer failure', confidence: 'high', detail: 'Upper-left touch area not responding, likely digitizer or connector damage.' });
+    diagnoses.push({ cause: 'glass damage', confidence: 'medium', detail: 'Cracked glass can impede touch input or cause pressure points.' });
+    steps.push('Power off device and remove rear housing per model guide.');
+    steps.push('Disconnect battery and remove display assembly.');
+    steps.push('Inspect digitizer connector for debris or damage; re-seat connector.');
+    steps.push('If connector and flex appear damaged, replace display assembly and test touch responsiveness.');
+    parts.push({ name: 'Display assembly (glass+digitizer)', stock: 'In stock' });
+    parts.push({ name: 'Adhesive set', stock: 'In stock' });
+    history_note = 'This model often requires full display assembly replacement for quadrant touch failures.';
+  } else if (f.includes('battery') || f.includes('drain')) {
+    diagnoses.push({ cause: 'battery degradation', confidence: 'high', detail: 'Accelerated discharge consistent with aged or failing battery.' });
+    steps.push('Run battery health diagnostics and check background processes.');
+    steps.push('If capacity < 80%, replace battery and retest.');
+    parts.push({ name: 'Battery pack', stock: 'Low stock' });
+    history_note = 'Some units show early capacity loss; recommend battery replacement if health is poor.';
+  } else if (f.includes('charging') || f.includes('port')) {
+    diagnoses.push({ cause: 'port wear', confidence: 'high', detail: 'Intermittent charging suggests loose or damaged charging port.' });
+    steps.push('Inspect charging port for debris and pins; clean with isopropyl alcohol and a soft brush.');
+    steps.push('If intermittent after cleaning, replace charging port or daughterboard.');
+    parts.push({ name: 'Charging port flex', stock: 'In stock' });
+    history_note = 'Ports frequently suffer mechanical wear; keep spare flex boards on hand.';
+  } else {
+    diagnoses.push({ cause: 'visual inspection', confidence: 'medium', detail: 'Require hands-on inspection to refine diagnosis.' });
+    steps.push('Start with visual inspection for physical damage.');
+    steps.push('Run basic function tests (display, touch, power, sensors).');
+    parts.push({ name: 'Generic replacement parts checklist', stock: 'In stock' });
+    history_note = 'Further inspection needed to identify exact failing component.';
+  }
+
+  return { diagnoses, steps, parts, history_note };
+}
+
+async function runDiagnosis() {
+  const brand = document.getElementById('brand').value;
+  const model = document.getElementById('model').value;
+  const tech = document.getElementById('tech').value;
+  const fault = document.getElementById('faultDesc').value.trim();
+  if (!fault) return;
+
+  const btn = document.getElementById('diagnoseBtn');
+  const aiBody = document.getElementById('aiBody');
+  const dot = document.getElementById('pulseDot');
+  const tag = document.getElementById('aiTag');
+
+  btn.disabled = true;
+  btn.textContent = 'Analysing…';
+  dot.classList.add('active');
+  tag.textContent = 'thinking';
+  aiBody.innerHTML = '<div style="padding:8px 0;"><div class="typing"><span></span><span></span><span></span></div></div>';
+
+  // Use local mock instead of requiring an API key
+  await new Promise(r => setTimeout(r, 700)); // simulate network latency
+  try {
+    const r = generateMockResponse(brand, model, fault, tech);
+
+    // attach metadata for downloads
+    lastDiagnosis = {
+      job: JOBS[activeIdx]?.id || null,
+      timestamp: new Date().toISOString(),
+      device: { brand, model },
+      technician: tech,
+      fault,
+      result: r
+    };
+
+    const confClass = c => c === 'high' ? 'conf-high' : c === 'medium' ? 'conf-medium' : 'conf-low';
+    const stockClass = s => s === 'In stock' ? 's-in' : 's-low';
+
+    aiBody.innerHTML = `
+      <div class="fade-up">
+        <div class="ai-block">
+          <div class="ai-block-title">Likely cause</div>
+          ${r.diagnoses.map(d => `
+            <div class="diag-card">
+              <div class="diag-title">${d.cause}<span class="conf-badge ${confClass(d.confidence)}">${d.confidence}</span></div>
+              <div class="diag-detail">${d.detail}</div>
+            </div>`).join('')}
+        </div>
+        <div class="ai-block">
+          <div class="ai-block-title">Repair steps</div>
+          ${r.steps.map((s,i) => `<div class="step-row"><span class="step-num">${i+1}</span><span class="step-text">${s}</span></div>`).join('')}
+        </div>
+        <div class="ai-block">
+          <div class="ai-block-title">Parts needed</div>
+          ${r.parts.map(p => `<div class="part-row">
+            <div class="part-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M16 2H8L6 7"/></svg></div>
+            <span class="part-name">${p.name}</span>
+            <span class="stock-badge ${stockClass(p.stock)}">${p.stock}</span>
+          </div>`).join('')}
+        </div>
+        <div class="ai-block">
+          <div class="ai-block-title">History note</div>
+          <div class="history-note">${r.history_note}</div>
+        </div>
+      </div>`;
+
+    tag.textContent = 'complete';
+    dot.classList.remove('active');
+    JOBS[activeIdx].status = 'progress';
+    renderJobs();
+    return lastDiagnosis;
+  } catch(e) {
+    aiBody.innerHTML = `<div class="ai-empty"><div class="ai-empty-icon" style="color:var(--red)"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div><p style="color:var(--red);">Diagnosis failed: ${e.message}</p></div>`;
+    tag.textContent = 'error';
+    dot.classList.remove('active');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M12 6v6l4 2"/></svg> Run AI diagnosis`;
+}
+
+// Download helpers
+async function downloadJSON() {
+  if (!lastDiagnosis) {
+    await runDiagnosis();
+    if (!lastDiagnosis) return;
+  }
+  const filename = `${lastDiagnosis.job || 'report'}-${lastDiagnosis.device.brand}-${lastDiagnosis.device.model}.json`.replace(/\s+/g,'_');
+  const blob = new Blob([JSON.stringify(lastDiagnosis, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildHtmlReport(d) {
+  const partsHtml = d.result.parts.map(p => `<div><strong>${escapeHtml(p.name)}</strong> — ${escapeHtml(p.stock)}</div>`).join('');
+  const stepsHtml = d.result.steps.map((s,i) => `<div>${i+1}. ${escapeHtml(s)}</div>`).join('');
+  const diagHtml = d.result.diagnoses.map(di => `<div><strong>${escapeHtml(di.cause)}</strong> <em>${escapeHtml(di.confidence)}</em><div>${escapeHtml(di.detail)}</div></div>`).join('');
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Diagnosis report</title><style>body{font-family:Arial,Helvetica,sans-serif;padding:20px;color:#111}h1{font-size:18px}h2{font-size:14px;margin-top:14px}</style></head><body><h1>Diagnosis Report — ${escapeHtml(d.job || '')}</h1><div><strong>Device:</strong> ${escapeHtml(d.device.brand)} ${escapeHtml(d.device.model)}</div><div><strong>Technician:</strong> ${escapeHtml(d.technician)}</div><div><strong>Timestamp:</strong> ${escapeHtml(d.timestamp)}</div><h2>Fault</h2><div>${escapeHtml(d.fault)}</div><h2>Likely causes</h2>${diagHtml}<h2>Repair steps</h2>${stepsHtml}<h2>Parts</h2>${partsHtml}<h2>Notes</h2><div>${escapeHtml(d.result.history_note)}</div></body></html>`;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+async function downloadReport() {
+  if (!lastDiagnosis) {
+    await runDiagnosis();
+    if (!lastDiagnosis) return;
+  }
+  const html = buildHtmlReport(lastDiagnosis);
+  const filename = `${lastDiagnosis.job || 'report'}-${lastDiagnosis.device.brand}-${lastDiagnosis.device.model}.html`.replace(/\s+/g,'_');
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Init
+renderJobs();
+
+
