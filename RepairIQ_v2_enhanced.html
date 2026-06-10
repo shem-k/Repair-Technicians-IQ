@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RepairIQ — AI Diagnostic Assistant (Enhanced)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e10;
+    --bg2: #16161a;
+    --bg3: #1e1e24;
+    --bg4: #26262e;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #f0eff4;
+    --text2: #9998a8;
+    --text3: #5e5d6e;
+    --accent: #7fffb2;
+    --accent-dim: rgba(127,255,178,0.12);
+    --accent-border: rgba(127,255,178,0.3);
+    --amber: #ffc96b;
+    --amber-dim: rgba(255,201,107,0.12);
+    --red: #ff6b7a;
+    --red-dim: rgba(255,107,122,0.1);
+    --blue: #7eb8ff;
+    --blue-dim: rgba(126,184,255,0.1);
+    --font-display: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --r: 6px;
+    --r2: 10px;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
+
+  /* LAYOUT */
+  .app { display: grid; grid-template-columns: 52px 240px 1fr 300px; grid-template-rows: 100vh; height: 100vh; }
+
+  /* ICON NAV */
+  .icon-nav { background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 4px; }
+  .nav-logo { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+  .nav-logo svg { width: 18px; height: 18px; color: #0e0e10; }
+  .nav-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text3); transition: background 0.15s, color 0.15s; border: none; background: transparent; }
+  .nav-icon:hover { background: var(--bg4); color: var(--text2); }
+  .nav-icon.active { background: var(--accent-dim); color: var(--accent); }
+  .nav-icon svg { width: 18px; height: 18px; }
+  .nav-spacer { flex: 1; }
+
+  /* SIDEBAR */
+  .sidebar { background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .sidebar-head { padding: 18px 16px 12px; border-bottom: 1px solid var(--border); }
+  .sidebar-head h2 { font-family: var(--font-display); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); }
+  .search-box { margin: 10px 12px; position: relative; }
+  .search-box input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r); color: var(--text); font-family: var(--font-body); font-size: 12px; padding: 6px 10px 6px 30px; outline: none; transition: border 0.15s; }
+  .search-box input:focus { border-color: var(--border2); }
+  .search-box input::placeholder { color: var(--text3); }
+  .search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--text3); width: 14px; height: 14px; }
+  .job-list { flex: 1; overflow-y: auto; padding: 8px; scrollbar-width: thin; scrollbar-color: var(--bg4) transparent; }
+  .job-item { padding: 10px 12px; border-radius: var(--r2); cursor: pointer; margin-bottom: 2px; border: 1px solid transparent; transition: all 0.12s; }
+  .job-item:hover { background: var(--bg3); }
+  .job-item.active { background: var(--bg3); border-color: var(--border2); }
+  .job-item-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+  .job-id { font-family: var(--font-mono); font-size: 10px; color: var(--text3); }
+  .job-badge { font-size: 10px; font-family: var(--font-mono); padding: 2px 6px; border-radius: 999px; font-weight: 500; }
+  .b-new { background: var(--blue-dim); color: var(--blue); }
+  .b-progress { background: var(--amber-dim); color: var(--amber); }
+  .b-done { background: var(--accent-dim); color: var(--accent); }
+  .job-name { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+  .job-fault { font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sidebar-footer { padding: 12px 16px; border-top: 1px solid var(--border); }
+  .add-btn { width: 100%; padding: 8px; border-radius: var(--r); border: 1px dashed var(--border2); background: transparent; color: var(--text2); font-family: var(--font-body); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s; }
+  .add-btn:hover { border-color: var(--accent-border); color: var(--accent); background: var(--accent-dim); }
+
+  /* MAIN */
+  .main { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+  .topbar { display: flex; align-items: center; gap: 12px; padding: 0 24px; height: 56px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .topbar-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; flex: 1; }
+  .chip { display: flex; align-items: center; gap: 5px; font-size: 11px; font-family: var(--font-mono); padding: 4px 10px; border-radius: 999px; background: var(--bg3); border: 1px solid var(--border); color: var(--text2); }
+  .chip svg { width: 12px; height: 12px; }
+  .content { flex: 1; overflow-y: auto; padding: 24px; scrollbar-width: thin; scrollbar-color: var(--bg4) transparent; display: flex; flex-direction: column; gap: 16px; }
+
+  /* SECTIONS */
+  .section-label { font-size: 10px; font-family: var(--font-mono); font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); padding: 16px; }
+
+  /* INTAKE GRID */
+  .intake-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+  .field label { font-size: 10px; font-family: var(--font-mono); color: var(--text3); display: block; margin-bottom: 6px; letter-spacing: 0.05em; }
+  .field select, .field input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r); color: var(--text); font-family: var(--font-body); font-size: 13px; padding: 7px 10px; outline: none; appearance: none; transition: border 0.15s; }
+  .field select:focus, .field input:focus { border-color: var(--accent-border); }
+  .field select option { background: var(--bg3); }
+
+  /* FAULT */
+  .fault-row { display: grid; grid-template-columns: 1fr 200px; gap: 12px; }
+  textarea { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r); color: var(--text); font-family: var(--font-body); font-size: 13px; padding: 10px 12px; outline: none; resize: none; transition: border 0.15s; line-height: 1.6; }
+  textarea:focus { border-color: var(--accent-border); }
+  textarea::placeholder { color: var(--text3); }
+
+  /* PHOTOS */
+  .photo-zone { border: 1px dashed var(--border2); border-radius: var(--r); padding: 14px; text-align: center; cursor: pointer; transition: all 0.15s; position: relative; background: var(--bg3); }
+  .photo-zone:hover { border-color: var(--accent-border); background: var(--accent-dim); }
+  .photo-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .photo-zone-icon { color: var(--text3); margin-bottom: 4px; }
+  .photo-zone p { font-size: 11px; color: var(--text3); }
+  .photo-thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .thumb { width: 48px; height: 48px; border-radius: var(--r); border: 1px solid var(--border); background: var(--bg3); display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 11px; color: var(--text3); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* ACTION BUTTONS */
+  .action-buttons { display: flex; gap: 10px; margin-top: 16px; }
+  .diagnose-btn { flex: 1; padding: 12px; border-radius: var(--r2); border: 1px solid var(--accent-border); background: var(--accent-dim); color: var(--accent); font-family: var(--font-display); font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; letter-spacing: 0.04em; transition: all 0.15s; }
+  .diagnose-btn:hover:not(:disabled) { background: rgba(127,255,178,0.2); }
+  .diagnose-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .diagnose-btn svg { width: 16px; height: 16px; }
+  .complete-btn { flex: 1; padding: 12px; border-radius: var(--r2); border: 1px solid rgba(76,175,80,0.3); background: rgba(76,175,80,0.12); color: #4caf50; font-family: var(--font-display); font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; letter-spacing: 0.04em; transition: all 0.15s; }
+  .complete-btn:hover:not(:disabled) { background: rgba(76,175,80,0.2); }
+  .complete-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .export-btn { padding: 8px 16px; border-radius: var(--r); border: 1px solid var(--border); background: var(--bg3); color: var(--text2); font-family: var(--font-body); font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .export-btn:hover { border-color: var(--accent-border); color: var(--accent); background: var(--accent-dim); }
+
+  /* INVENTORY CARD */
+  .inventory-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); justify-content: space-between; }
+  .inventory-row:last-child { border-bottom: none; }
+  .inv-name { font-size: 12px; color: var(--text); }
+  .inv-qty { font-size: 12px; font-family: var(--font-mono); color: var(--text2); }
+  .inv-qty.low { color: var(--amber); font-weight: 600; }
+  .inv-qty.critical { color: var(--red); font-weight: 600; }
+
+  /* AI PANEL */
+  .ai-panel { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .ai-head { padding: 0 16px; height: 56px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); transition: background 0.3s; }
+  .pulse-dot.active { background: var(--accent); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(127,255,178,0.4);} 50%{opacity:0.7;box-shadow:0 0 0 5px rgba(127,255,178,0);} }
+  .ai-head-label { font-family: var(--font-display); font-size: 13px; font-weight: 600; flex: 1; }
+  .ai-tag { font-size: 10px; font-family: var(--font-mono); color: var(--text3); }
+  .ai-body { flex: 1; overflow-y: auto; padding: 16px; scrollbar-width: thin; scrollbar-color: var(--bg4) transparent; }
+  .ai-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; gap: 10px; padding: 24px; }
+  .ai-empty-icon { color: var(--text3); }
+  .ai-empty p { font-size: 12px; color: var(--text3); line-height: 1.7; }
+  .ai-block { margin-bottom: 20px; }
+  .ai-block-title { font-size: 10px; font-family: var(--font-mono); font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .ai-block-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .diag-card { border: 1px solid var(--border); border-radius: var(--r); padding: 10px 12px; background: var(--bg3); margin-bottom: 6px; }
+  .diag-title { font-size: 12px; font-weight: 500; color: var(--text); display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .conf-badge { font-size: 10px; font-family: var(--font-mono); padding: 2px 6px; border-radius: 999px; }
+  .conf-high { background: var(--accent-dim); color: var(--accent); }
+  .conf-medium { background: var(--amber-dim); color: var(--amber); }
+  .conf-low { background: var(--red-dim); color: var(--red); }
+  .diag-detail { font-size: 11px; color: var(--text2); line-height: 1.5; }
+  .step-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start; }
+  .step-num { width: 20px; height: 20px; border-radius: 50%; background: var(--bg4); border: 1px solid var(--border2); font-family: var(--font-mono); font-size: 10px; color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .step-text { font-size: 12px; color: var(--text2); line-height: 1.6; }
+  .part-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .part-row:last-child { border-bottom: none; }
+  .part-icon { width: 28px; height: 28px; border-radius: var(--r); background: var(--bg4); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .part-icon svg { width: 14px; height: 14px; color: var(--text3); }
+  .part-name { flex: 1; font-size: 12px; color: var(--text); }
+  .stock-badge { font-size: 10px; font-family: var(--font-mono); padding: 2px 7px; border-radius: 999px; }
+  .s-in { background: var(--accent-dim); color: var(--accent); }
+  .s-low { background: var(--amber-dim); color: var(--amber); }
+  .s-out { background: var(--red-dim); color: var(--red); }
+  .history-note { font-size: 12px; color: var(--text2); line-height: 1.6; padding: 10px 12px; background: var(--bg3); border-radius: var(--r); border-left: 2px solid var(--accent-border); }
+  .typing { display: flex; gap: 5px; align-items: center; padding: 12px 0; }
+  .typing span { width: 5px; height: 5px; border-radius: 50%; background: var(--text3); animation: bounce 1.3s ease-in-out infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0);opacity:0.4;} 30%{transform:translateY(-7px);opacity:1;} }
+
+  /* MODAL */
+  .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; align-items: center; justify-content: center; }
+  .modal.active { display: flex; }
+  .modal-content { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); padding: 24px; max-width: 500px; width: 90%; }
+  .modal-content h3 { margin-bottom: 16px; font-family: var(--font-display); font-size: 16px; }
+  .modal-field { margin-bottom: 14px; }
+  .modal-field label { display: block; font-size: 11px; font-family: var(--font-mono); color: var(--text3); margin-bottom: 6px; }
+  .modal-field select, .modal-field textarea { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r); color: var(--text); font-family: var(--font-body); font-size: 13px; padding: 8px 10px; outline: none; }
+  .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-buttons button { flex: 1; padding: 10px; border-radius: var(--r); border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-family: var(--font-body); cursor: pointer; transition: all 0.15s; }
+  .modal-buttons button:first-child { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+  .modal-buttons button:hover { border-color: var(--accent-border); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+
+  /* FADE IN */
+  @keyframes fadeUp { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+  .fade-up { animation: fadeUp 0.3s ease forwards; }
+
+  /* ALERTS */
+  .alert { padding: 12px; border-radius: var(--r2); font-size: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .alert.warning { background: var(--amber-dim); border: 1px solid rgba(255,201,107,0.3); color: var(--amber); }
+  .alert.success { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); }
+  .alert.error { background: var(--red-dim); border: 1px solid rgba(255,107,122,0.3); color: var(--red); }
+  .alert svg { width: 16px; height: 16px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ICON NAV -->
+  <nav class="icon-nav">
+    <div class="nav-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    </div>
+    <button class="nav-icon active" title="Jobs">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    </button>
+    <button class="nav-icon" title="Parts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3-3a1 1 0 000-1.4L19.3 3.3a1 1 0 00-1.4 0l-3.2 3z"/><path d="M9.3 9L4 14.3a1 1 0 000 1.4l4 4a1 1 0 001.4 0L14.7 15"/></svg>
+    </button>
+    <button class="nav-icon" title="Analytics">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M18 12l-5-6-4 4-3-2"/></svg>
+    </button>
+    <div class="nav-spacer"></div>
+    <button class="nav-icon" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 000 2.83 2 2 0 002.83 0l.06-.06a1.65 1.65 0 011.82-.33 1.65 1.65 0 011 1.51V21a2 2 0 002 2 2 2 0 002-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 00-2.83 0 2 2 0 000 2.83l.06.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 00-2 2 2 2 0 002 2h.09A1.65 1.65 0 004.4 19.4"/></svg>
+    </button>
+  </nav>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <h2>Repair queue</h2>
+    </div>
+    <div class="search-box">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" placeholder="Search jobs…" oninput="filterJobs(this.value)" />
+    </div>
+    <div class="job-list" id="jobList"></div>
+    <div class="sidebar-footer">
+      <button class="add-btn" onclick="newJob()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        New repair job
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">Samsung Galaxy S24 — JOB-0041</div>
+      <div class="chip" id="chipTech">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        Tech: Amara
+      </div>
+      <div class="chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <span id="chipDate">30 May 2026</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="alertContainer"></div>
+
+      <div>
+        <div class="section-label">Device intake</div>
+        <div class="card">
+          <div class="intake-grid">
+            <div class="field">
+              <label>Brand</label>
+              <select id="brand" onchange="updateTopbar()">
+                <option>Samsung</option><option>Apple</option><option>Xiaomi</option><option>Tecno</option><option>Infinix</option><option>Huawei</option><option>OnePlus</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Model</label>
+              <input type="text" id="model" value="Galaxy S24" onchange="updateTopbar()" />
+            </div>
+            <div class="field">
+              <label>Serial/IMEI</label>
+              <input type="text" id="serial" placeholder="Device identifier" />
+            </div>
+            <div class="field">
+              <label>Technician</label>
+              <select id="tech" onchange="updateTopbar()">
+                <option>Amara</option><option>Jomo</option><option>Fatima</option><option>Kofi</option><option>Nia</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Priority</label>
+              <select id="priority">
+                <option>Normal</option><option>High</option><option>Urgent</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Customer Contact</label>
+              <input type="text" id="customer" placeholder="Phone/Email" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Fault description</div>
+        <div class="fault-row">
+          <div class="card" style="padding:0;">
+            <textarea id="faultDesc" rows="4" style="border:none;border-radius:var(--r2);" placeholder="Describe what the technician observes — symptoms, error messages, physical damage…">Screen is unresponsive to touch in the upper-left quadrant. Glass is cracked diagonally across the display. Device powers on and the display backlight functions normally.</textarea>
+          </div>
+          <div>
+            <div class="photo-zone" onclick="triggerUpload()">
+              <input type="file" accept="image/*" multiple id="photoInput" onchange="handlePhotos(this)" />
+              <div class="photo-zone-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8L6 7"/><circle cx="12" cy="14" r="3"/></svg>
+              </div>
+              <p>Tap to add<br>damage photos</p>
+            </div>
+            <div class="photo-thumbs" id="thumbs">
+              <div class="thumb">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="diagnose-btn" id="diagnoseBtn" onclick="runDiagnosis()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M12 6v6l4 2"/></svg>
+          Run AI diagnosis
+        </button>
+        <button class="complete-btn" id="completeBtn" onclick="completeRepair()" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Complete repair
+        </button>
+        <button class="export-btn" onclick="exportJobHistory()">📥 Export</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI PANEL -->
+  <div class="ai-panel">
+    <div class="ai-head">
+      <div class="pulse-dot" id="pulseDot"></div>
+      <div class="ai-head-label">AI diagnostic</div>
+      <div class="ai-tag" id="aiTag">idle</div>
+    </div>
+    <div class="ai-body" id="aiBody">
+      <div class="ai-empty">
+        <div class="ai-empty-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></svg>
+        </div>
+        <p>Enter device details and describe the fault, then run a diagnosis to get AI-guided repair steps.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- COMPLETION MODAL -->
+<div id="completionModal" class="modal">
+  <div class="modal-content">
+    <h3>Complete Repair Job</h3>
+    <div class="modal-field">
+      <label>Repair Status</label>
+      <select id="completionStatus">
+        <option value="completed">✓ Completed Successfully</option>
+        <option value="failed">⚠ Failed - Requires Further Work</option>
+        <option value="returned">↩ Customer Returned Device</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label>Repair Time (minutes)</label>
+      <input type="number" id="repairTime" placeholder="e.g., 45" min="1" />
+    </div>
+    <div class="modal-field">
+      <label>Parts Replaced</label>
+      <textarea id="partsReplaced" rows="3" placeholder="List parts used in repair…"></textarea>
+    </div>
+    <div class="modal-field">
+      <label>Completion Notes</label>
+      <textarea id="completionNotes" rows="3" placeholder="Additional details…"></textarea>
+    </div>
+    <div class="modal-buttons">
+      <button onclick="saveCompletion()">Save & Complete</button>
+      <button onclick="closeModal('completionModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ DATA STORAGE ============
+const INVENTORY = {
+  "Display Assembly": 12,
+  "Battery Pack": 20,
+  "Charging Port": 15,
+  "Speaker Module": 18,
+  "Rear Camera": 10,
+  "Motherboard": 5,
+  "USB Connector": 25,
+  "Headphone Jack": 8,
+  "Microphone": 12,
+  "Volume Button": 14
+};
+
+const JOBS = [
+  { id:'JOB-0041', brand:'Samsung', model:'Galaxy S24', tech:'Amara', serial:'', customer:'', fault:'Screen unresponsive, cracked glass diagonally.', priority:'Normal', status:'progress', diagnosis:null, repairTime:0, partsReplaced:[], notes:'' },
+  { id:'JOB-0040', brand:'Apple', model:'iPhone 15 Pro', tech:'Jomo', serial:'', customer:'', fault:'Battery draining significantly faster than normal.', priority:'High', status:'new', diagnosis:null, repairTime:0, partsReplaced:[], notes:'' },
+  { id:'JOB-0039', brand:'Xiaomi', model:'Redmi Note 13', tech:'Fatima', serial:'', customer:'', fault:'Charging port loose, intermittent charging.', priority:'Normal', status:'new', diagnosis:null, repairTime:0, partsReplaced:[], notes:'' },
+  { id:'JOB-0038', brand:'Tecno', model:'Camon 20', tech:'Kofi', serial:'', customer:'', fault:'Rear camera lens cracked, photos blurry.', priority:'Normal', status:'done', diagnosis:null, repairTime:120, partsReplaced:['Rear Camera'], notes:'Replaced and tested.' },
+  { id:'JOB-0037', brand:'Infinix', model:'Hot 40i', tech:'Nia', serial:'', customer:'', fault:'Speaker crackling at high volume.', priority:'Normal', status:'done', diagnosis:null, repairTime:60, partsReplaced:['Speaker Module'], notes:'Cleaned contacts and replaced.' },
+];
+
+let activeIdx = 0;
+let JOBS_HISTORY = JSON.parse(localStorage.getItem('jobsHistory')) || [];
+
+// ============ DIAGNOSIS DATABASE ============
+const DIAGNOSIS_DB = {
+  "screen": { diagnosis: "digitizer failure", confidence: 0.95, part: "Display Assembly", detail: "Upper-left touch area not responding, likely digitizer or connector damage." },
+  "touch": { diagnosis: "digitizer failure", confidence: 0.9, part: "Display Assembly", detail: "Touch unresponsiveness suggests digitizer or flex cable damage." },
+  "battery": { diagnosis: "battery degradation", confidence: 0.85, part: "Battery Pack", detail: "Accelerated discharge consistent with aged or failing battery." },
+  "drain": { diagnosis: "battery degradation", confidence: 0.8, part: "Battery Pack", detail: "Fast battery drain may indicate chemical degradation." },
+  "charging": { diagnosis: "charging port damage", confidence: 0.9, part: "Charging Port", detail: "Intermittent charging suggests loose or damaged port." },
+  "port": { diagnosis: "charging port damage", confidence: 0.85, part: "Charging Port", detail: "Port wear is common from repeated insertion." },
+  "speaker": { diagnosis: "speaker module failure", confidence: 0.8, part: "Speaker Module", detail: "Audio distortion or crackling indicates speaker failure." },
+  "sound": { diagnosis: "speaker module failure", confidence: 0.8, part: "Speaker Module", detail: "No sound or low volume suggests speaker issue." },
+  "camera": { diagnosis: "camera module failure", confidence: 0.85, part: "Rear Camera", detail: "Blurry photos or lens cracks indicate camera failure." },
+  "mic": { diagnosis: "microphone failure", confidence: 0.85, part: "Microphone", detail: "Muted or unclear audio input suggests microphone failure." },
+};
+
+// ============ UI FUNCTIONS ============
+function renderJobs(filter='') {
+  const list = document.getElementById('jobList');
+  const filtered = JOBS.filter(j =>
+    j.brand.toLowerCase().includes(filter.toLowerCase()) ||
+    j.model.toLowerCase().includes(filter.toLowerCase()) ||
+    j.id.toLowerCase().includes(filter.toLowerCase())
+  );
+  list.innerHTML = filtered.map((j, i) => {
+    const orig = JOBS.indexOf(j);
+    return `<div class="job-item ${orig===activeIdx?'active':''}" onclick="selectJob(${orig})">
+      <div class="job-item-top">
+        <span class="job-id">${j.id}</span>
+        <span class="job-badge b-${j.status}">${j.status==='progress'?'in progress':j.status}</span>
+      </div>
+      <div class="job-name">${j.brand} ${j.model}</div>
+      <div class="job-fault">${j.fault}</div>
+    </div>`;
+  }).join('');
+}
+
+function filterJobs(val) { renderJobs(val); }
+
+function selectJob(i) {
+  activeIdx = i;
+  const j = JOBS[i];
+  document.getElementById('brand').value = j.brand;
+  document.getElementById('model').value = j.model;
+  document.getElementById('tech').value = j.tech;
+  document.getElementById('serial').value = j.serial || '';
+  document.getElementById('customer').value = j.customer || '';
+  document.getElementById('priority').value = j.priority;
+  document.getElementById('faultDesc').value = j.fault;
+  document.getElementById('topbarTitle').textContent = `${j.brand} ${j.model} — ${j.id}`;
+  document.getElementById('chipTech').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> Tech: ${j.tech}`;
+  document.getElementById('completeBtn').style.display = j.status === 'progress' ? 'flex' : 'none';
+  resetAI();
+  renderJobs();
+}
+
+function newJob() {
+  const id = 'JOB-' + String(Math.floor(Math.random()*9000)+1000);
+  JOBS.unshift({ id, brand:'Samsung', model:'', tech:'Amara', serial:'', customer:'', fault:'', priority:'Normal', status:'new', diagnosis:null, repairTime:0, partsReplaced:[], notes:'' });
+  selectJob(0);
+}
+
+function updateTopbar() {
+  const b = document.getElementById('brand').value;
+  const m = document.getElementById('model').value;
+  const t = document.getElementById('tech').value;
+  const j = JOBS[activeIdx];
+  j.brand = b; j.model = m; j.tech = t;
+  document.getElementById('topbarTitle').textContent = `${b} ${m} — ${j.id}`;
+  document.getElementById('chipTech').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> Tech: ${t}`;
+  renderJobs();
+}
+
+function triggerUpload() {
+  document.getElementById('photoInput').click();
+}
+
+function handlePhotos(input) {
+  const thumbs = document.getElementById('thumbs');
+  Array.from(input.files).forEach(f => {
+    const url = URL.createObjectURL(f);
+    const d = document.createElement('div');
+    d.className = 'thumb';
+    d.innerHTML = `<img src="${url}" alt="damage photo">`;
+    thumbs.appendChild(d);
+  });
+}
+
+function showAlert(message, type) {
+  const container = document.getElementById('alertContainer');
+  const alert = document.createElement('div');
+  alert.className = `alert ${type}`;
+  alert.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      ${type === 'warning' ? '<path d="M12 2L2 20h20L12 2z"/><path d="M12 9v4M12 17h.01"/>' : 
+        type === 'success' ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>' :
+        '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'}
+    </svg>
+    ${message}
+  `;
+  container.innerHTML = '';
+  container.appendChild(alert);
+  setTimeout(() => alert.remove(), 5000);
+}
+
+function resetAI() {
+  document.getElementById('aiBody').innerHTML = `<div class="ai-empty"><div class="ai-empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></svg></div><p>Enter device details and describe the fault, then run a diagnosis to get AI-guided repair steps.</p></div>`;
+  document.getElementById('pulseDot').classList.remove('active');
+  document.getElementById('aiTag').textContent = 'idle';
+}
+
+// ============ DIAGNOSIS ENGINE ============
+function generateDiagnosis(brand, model, fault) {
+  const f = fault.toLowerCase();
+  const matches = [];
+  
+  for (const [keyword, info] of Object.entries(DIAGNOSIS_DB)) {
+    if (f.includes(keyword)) {
+      matches.push(info);
+    }
+  }
+  
+  if (matches.length === 0) {
+    return {
+      diagnoses: [{ cause: 'Visual inspection required', confidence: 'medium', detail: 'Further inspection needed to identify exact failing component.' }],
+      steps: ['Start with visual inspection for physical damage', 'Run basic function tests (display, touch, power, sensors)', 'Test each component systematically'],
+      parts: [{ name: 'Generic replacement parts checklist', stock: 'checkStock("Generic")' }],
+      history_note: 'Further inspection needed to identify exact failing component.'
+    };
+  }
+  
+  const best = matches.reduce((a, b) => a.confidence > b.confidence ? a : b);
+  
+  const steps = [];
+  const parts = [];
+  
+  if (best.part.includes('Display')) {
+    steps.push('Power off device and remove rear housing per model guide.');
+    steps.push('Disconnect battery to prevent short circuits.');
+    steps.push('Remove display assembly carefully.');
+    steps.push('Inspect digitizer connector for debris and re-seat if needed.');
+    steps.push('Replace display assembly if damaged.');
+    steps.push('Apply adhesive and secure new display.');
+    steps.push('Test touch responsiveness before closure.');
+  } else if (best.part.includes('Battery')) {
+    steps.push('Access battery compartment per model guide.');
+    steps.push('Disconnect battery connector.');
+    steps.push('Remove old battery carefully.');
+    steps.push('Install new battery and test charge cycle.');
+    steps.push('Monitor voltage and temperature during first charge.');
+  } else if (best.part.includes('Charging')) {
+    steps.push('Inspect charging port for physical damage and debris.');
+    steps.push('Clean port gently with isopropyl alcohol and soft brush.');
+    steps.push('Test charging with original charger.');
+    steps.push('If still intermittent, replace charging port flex board.');
+  } else if (best.part.includes('Speaker')) {
+    steps.push('Access speaker module location.');
+    steps.push('Check for water damage or corrosion.');
+    steps.push('Test speaker output at various volumes.');
+    steps.push('Replace speaker module if defective.');
+  } else if (best.part.includes('Camera')) {
+    steps.push('Access rear camera module.');
+    steps.push('Inspect lens for cracks or contamination.');
+    steps.push('Test camera app and photo quality.');
+    steps.push('Replace camera module if lens is cracked.');
+  } else {
+    steps.push('Perform detailed visual inspection.');
+    steps.push('Test all device functions systematically.');
+    steps.push('Identify faulty component.');
+  }
+  
+  if (best.part !== 'Unknown') {
+    parts.push({ name: best.part, stock: 'checkStock("' + best.part + '")' });
+  }
+  
+  return {
+    diagnoses: [{ cause: best.diagnosis, confidence: best.confidence >= 0.85 ? 'high' : best.confidence >= 0.7 ? 'medium' : 'low', detail: best.detail }],
+    steps,
+    parts,
+    history_note: `${brand} ${model} — common issue for this model.`
+  };
+}
+
+function checkStock(part) {
+  const qty = INVENTORY[part] || 0;
+  if (qty > 10) return { status: 'In stock', badge: 's-in' };
+  if (qty > 3) return { status: 'Low stock', badge: 's-low' };
+  return { status: 'Out of stock', badge: 's-out' };
+}
+
+async function runDiagnosis() {
+  const brand = document.getElementById('brand').value;
+  const model = document.getElementById('model').value;
+  const tech = document.getElementById('tech').value;
+  const fault = document.getElementById('faultDesc').value.trim();
+  
+  if (!fault) {
+    showAlert('Please describe the fault before running diagnosis', 'warning');
+    return;
+  }
+
+  const btn = document.getElementById('diagnoseBtn');
+  const aiBody = document.getElementById('aiBody');
+  const dot = document.getElementById('pulseDot');
+  const tag = document.getElementById('aiTag');
+
+  btn.disabled = true;
+  btn.textContent = 'Analysing…';
+  dot.classList.add('active');
+  tag.textContent = 'thinking';
+  aiBody.innerHTML = '<div style="padding:8px 0;"><div class="typing"><span></span><span></span><span></span></div></div>';
+
+  await new Promise(r => setTimeout(r, 800));
+  
+  try {
+    const diagnosis = generateDiagnosis(brand, model, fault);
+    JOBS[activeIdx].diagnosis = diagnosis;
+
+    const confClass = c => c === 'high' ? 'conf-high' : c === 'medium' ? 'conf-medium' : 'conf-low';
+
+    let partsHTML = diagnosis.parts.map(p => {
+      const stock = eval(p.stock);
+      return `<div class="part-row">
+        <div class="part-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M16 2H8L6 7"/></svg></div>
+        <span class="part-name">${p.name}</span>
+        <span class="stock-badge ${stock.badge}">${stock.status}</span>
+      </div>`;
+    }).join('');
+
+    aiBody.innerHTML = `
+      <div class="fade-up">
+        <div class="ai-block">
+          <div class="ai-block-title">Likely cause</div>
+          ${diagnosis.diagnoses.map(d => `
+            <div class="diag-card">
+              <div class="diag-title">${d.cause}<span class="conf-badge ${confClass(d.confidence)}">${d.confidence}</span></div>
+              <div class="diag-detail">${d.detail}</div>
+            </div>`).join('')}
+        </div>
+        <div class="ai-block">
+          <div class="ai-block-title">Repair steps</div>
+          ${diagnosis.steps.map((s,i) => `<div class="step-row"><span class="step-num">${i+1}</span><span class="step-text">${s}</span></div>`).join('')}
+        </div>
+        <div class="ai-block">
+          <div class="ai-block-title">Parts needed</div>
+          ${partsHTML}
+        </div>
+        <div class="ai-block">
+          <div class="ai-block-title">History note</div>
+          <div class="history-note">${diagnosis.history_note}</div>
+        </div>
+      </div>`;
+
+    tag.textContent = 'complete';
+    dot.classList.remove('active');
+    JOBS[activeIdx].status = 'progress';
+    document.getElementById('completeBtn').style.display = 'flex';
+    renderJobs();
+    showAlert('✓ Diagnosis complete. Review steps and start repair.', 'success');
+  } catch(e) {
+    aiBody.innerHTML = `<div class="ai-empty"><div class="ai-empty-icon" style="color:var(--red)"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div><p style="color:var(--red);">Diagnosis failed: ${e.message}</p></div>`;
+    tag.textContent = 'error';
+    dot.classList.remove('active');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M12 6v6l4 2"/></svg> Run AI diagnosis`;
+}
+
+// ============ REPAIR COMPLETION ============
+function completeRepair() {
+  document.getElementById('completionModal').classList.add('active');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function saveCompletion() {
+  const status = document.getElementById('completionStatus').value;
+  const repairTime = parseInt(document.getElementById('repairTime').value) || 0;
+  const partsReplaced = document.getElementById('partsReplaced').value.split('\n').filter(p => p.trim());
+  const notes = document.getElementById('completionNotes').value;
+  
+  const job = JOBS[activeIdx];
+  job.status = status;
+  job.repairTime = repairTime;
+  job.partsReplaced = partsReplaced;
+  job.notes = notes;
+  
+  // Deduct inventory
+  partsReplaced.forEach(part => {
+    const trimmedPart = part.trim();
+    if (INVENTORY[trimmedPart]) {
+      INVENTORY[trimmedPart]--;
+    }
+  });
+  
+  // Save to history
+  JOBS_HISTORY.push({...job, completedAt: new Date().toLocaleString()});
+  localStorage.setItem('jobsHistory', JSON.stringify(JOBS_HISTORY));
+  
+  closeModal('completionModal');
+  renderJobs();
+  document.getElementById('completeBtn').style.display = 'none';
+  showAlert(`✓ Repair ${job.id} marked as ${status}. Inventory updated.`, 'success');
+  resetAI();
+  
+  // Clear form
+  document.getElementById('completionStatus').value = 'completed';
+  document.getElementById('repairTime').value = '';
+  document.getElementById('partsReplaced').value = '';
+  document.getElementById('completionNotes').value = '';
+}
+
+// ============ EXPORT ============
+function exportJobHistory() {
+  let csv = "Job ID,Brand,Model,Serial,Technician,Priority,Fault,Status,Repair Time (min),Parts Replaced,Notes,Completed\n";
+  
+  JOBS_HISTORY.forEach(j => {
+    const parts = j.partsReplaced.join('; ');
+    csv += `"${j.id}","${j.brand}","${j.model}","${j.serial || ''}","${j.tech}","${j.priority}","${j.fault}","${j.status}",${j.repairTime},"${parts}","${(j.notes || '').replace(/"/g, '""')}","${j.completedAt || ''}\n`;
+  });
+  
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `repair-history-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  
+  showAlert('✓ History exported as CSV', 'success');
+}
+
+// Init
+renderJobs();
+document.getElementById('chipDate').textContent = new Date().toLocaleDateString('en-US', {day:'numeric', month:'short', year:'numeric'});
+</script>
+</body>
+</html>
